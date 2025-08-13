@@ -1,19 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Indian Dish Finder</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
             background: linear-gradient(135deg, #fef3c7, #fed7aa);
-            font-family: Arial, sans-serif;
+            font-family: 'Inter', Arial, sans-serif;
+            line-height: 1.6;
         }
         .container {
-            max-width: 900px;
+            max-width: 1000px;
             margin: 2rem auto;
+            padding: 0 1rem;
         }
         .chip {
             display: inline-flex;
@@ -41,18 +43,43 @@
         }
         .dish-card {
             background-color: white;
-            border-radius: 0.5rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
+            padding: 1.5rem;
         }
         .dish-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
         }
-        img {
-            max-height: 250px;
-            object-fit: cover;
-            border-radius: 0.5rem;
+        .dish-section {
+            margin-bottom: 1.5rem;
+        }
+        .dish-section h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.75rem;
+        }
+        .dish-section p {
+            margin-bottom: 0.5rem;
+            color: #4b5563;
+        }
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-out;
+        }
+        .collapsible-content.show {
+            max-height: none; /* Unlimited height to prevent cutoff */
+        }
+        .collapsible-toggle {
+            cursor: pointer;
+            color: #1d4ed8;
+            font-weight: 500;
+        }
+        .collapsible-toggle:hover {
+            color: #1e40af;
         }
         .dropdown-menu {
             max-height: 300px;
@@ -70,6 +97,36 @@
             display: none;
             color: #b91c1c;
             font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+        .markdown-content {
+            white-space: pre-wrap;
+            line-height: 1.8;
+        }
+        .markdown-content h1, .markdown-content h2, .markdown-content h3 {
+            font-weight: 600;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .markdown-content ul, .markdown-content ol {
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .markdown-content li {
+            margin-bottom: 0.5rem;
+        }
+        .markdown-content p {
+            margin-bottom: 1rem;
+        }
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .container {
+                max-width: 100%;
+                padding: 0 0.5rem;
+            }
+            .dish-card {
+                padding: 1rem;
+            }
         }
     </style>
 </head>
@@ -87,12 +144,113 @@
             <div id="selected-ingredients" class="mt-3 flex flex-wrap"></div>
         </div>
         <button onclick="getRecommendations()" class="btn btn-primary w-full py-2 mb-4">Find Dishes</button>
-        <p id="error-message" class="error-message mt-2">Please pick at least one ingredient.</p>
+        <p id="error-message" class="error-message">Please pick at least one ingredient.</p>
         <div id="results" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4"></div>
     </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let selectedIngredients = [];
+        let currentDishes = [];
+
+        // Enhanced markdown-to-HTML parser
+        function parseMarkdown(text) {
+            if (!text || text === 'Not available') return '<p>Not available</p>';
+
+            // Split text into lines and process for markdown formatting
+            let lines = text.split('\n'); // Keep empty lines for better spacing
+            let html = '';
+            let inList = false;
+            let inOrderedList = false;
+
+            lines.forEach((line, index) => {
+                line = line.trim();
+
+                if (line === '') {
+                    html += '<br>'; // Add line break for empty lines
+                    return;
+                }
+
+                // Headers
+                if (line.startsWith('### ')) {
+                    if (inList) {
+                        html += '</ul>';
+                        inList = false;
+                    }
+                    if (inOrderedList) {
+                        html += '</ol>';
+                        inOrderedList = false;
+                    }
+                    html += `<h3 class="text-base font-semibold text-gray-800">${line.substring(4)}</h3>`;
+                } else if (line.startsWith('## ')) {
+                    if (inList) {
+                        html += '</ul>';
+                        inList = false;
+                    }
+                    if (inOrderedList) {
+                        html += '</ol>';
+                        inOrderedList = false;
+                    }
+                    html += `<h2 class="text-lg font-semibold text-gray-800">${line.substring(3)}</h2>`;
+                } else if (line.startsWith('# ')) {
+                    if (inList) {
+                        html += '</ul>';
+                        inList = false;
+                    }
+                    if (inOrderedList) {
+                        html += '</ol>';
+                        inOrderedList = false;
+                    }
+                    html += `<h1 class="text-xl font-bold text-gray-800">${line.substring(2)}</h1>`;
+                }
+                // Unordered Lists (support * and -)
+                else if (line.startsWith('* ') || line.startsWith('- ')) {
+                    if (!inList) {
+                        html += '<ul class="list-disc ml-6">';
+                        inList = true;
+                    }
+                    html += `<li>${line.substring(2)}</li>`;
+                }
+                // Ordered Lists
+                else if (line.match(/^\d+\.\s/)) {
+                    if (!inOrderedList) {
+                        if (inList) {
+                            html += '</ul>';
+                            inList = false;
+                        }
+                        html += '<ol class="list-decimal ml-6">';
+                        inOrderedList = true;
+                    }
+                    html += `<li>${line.replace(/^\d+\.\s/, '')}</li>`;
+                }
+                // Bold and Italic
+                else {
+                    line = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    line = line.replace(/\*(.*?)\*/g, '<em>$1</em>');
+                    if (inList) {
+                        html += '</ul>';
+                        inList = false;
+                    }
+                    if (inOrderedList) {
+                        html += '</ol>';
+                        inOrderedList = false;
+                    }
+                    html += `<p class="my-2">${line}</p>`;
+                }
+
+                // Ensure closure at end
+                if (index === lines.length - 1) {
+                    if (inList) {
+                        html += '</ul>';
+                    }
+                    if (inOrderedList) {
+                        html += '</ol>';
+                    }
+                }
+            });
+
+            return html || '<p>No content available</p>';
+        }
 
         document.getElementById('ingredients').addEventListener('change', function() {
             let ingredient = this.value;
@@ -119,6 +277,11 @@
             showSelectedIngredients();
         }
 
+        function toggleCollapsible(id) {
+            let content = document.getElementById(id);
+            content.classList.toggle('show');
+        }
+
         async function getRecommendations() {
             let errorMessage = document.getElementById('error-message');
             let resultsDiv = document.getElementById('results');
@@ -139,31 +302,76 @@
                     throw new Error(data.error);
                 }
                 resultsDiv.innerHTML = '';
+                currentDishes = [];
                 if (data.results.length === 0 || data.results[0].dish === null) {
-                    resultsDiv.innerHTML = '<p class="text-red-600 col-12">No matching dishes found.</p>';
+                    resultsDiv.innerHTML = '<p class="text-red-600 col-12 font-medium">No matching dishes found.</p>';
                     return;
                 }
-                data.results.forEach(result => {
+                data.results.forEach((result, index) => {
+                    if (result.dish) {
+                        currentDishes.push(result.dish);
+                    }
                     let dishCard = `
                         <div class="col">
-                            <div class="dish-card p-4">
-                                <h2 class="text-xl font-semibold text-gray-800 mb-2">${result.dish || 'None'}</h2>
-                                <p><strong>Matching Ingredients:</strong> ${result.matches.join(', ') || 'None'}</p>
-                                <img src="${result.image_url || ''}" alt="${result.dish || 'No image'}" class="w-full mb-3" onerror="this.src='https://via.placeholder.com/250'; this.alt='Image not available';">
-                                <p><strong>Description:</strong> ${result.description || 'Not available'}</p>
-                                <p><strong>Cuisine:</strong> ${result.cuisine || 'Not available'}</p>
-                                <p><strong>Course:</strong> ${result.course || 'Not available'}</p>
-                                <p><strong>Diet:</strong> ${result.diet || 'Not available'}</p>
-                                <p><strong>Prep Time:</strong> ${result.prep_time || 'Not available'}</p>
-                                <p><strong>Ingredients:</strong> ${result.ingredients || 'Not available'}</p>
-                                <p><strong>Instructions:</strong> ${result.instructions || 'Not available'}</p>
+                            <div class="dish-card">
+                                <h2 class="text-2xl font-bold text-gray-800 mb-3">${result.dish || 'None'}</h2>
+                                <div class="dish-section">
+                                    <h3>Matching Ingredients</h3>
+                                    <p>${result.matches.join(', ') || 'None'}</p>
+                                </div>
+                                <div class="dish-section">
+                                    <h3>Description</h3>
+                                    <p>${result.description || 'Not available'}</p>
+                                </div>
+                                <div class="dish-section">
+                                    <h3>Cuisine</h3>
+                                    <p>${result.cuisine || 'Not available'}</p>
+                                </div>
+                                <div class="dish-section">
+                                    <h3>Course</h3>
+                                    <p>${result.course || 'Not available'}</p>
+                                </div>
+                                <div class="dish-section">
+                                    <h3>Diet</h3>
+                                    <p>${result.diet || 'Not available'}</p>
+                                </div>
+                                <div class="dish-section">
+                                    <h3>Prep Time</h3>
+                                    <p>${result.prep_time || 'Not available'}</p>
+                                </div>
+                                <div class="dish-section">
+                                    <h3>Ingredients</h3>
+                                    <p>${result.ingredients || 'Not available'}</p>
+                                </div>
+                                <div class="dish-section">
+                                    <h3>Instructions</h3>
+                                    <p>${result.instructions || 'Not available'}</p>
+                                </div>
+                                <div class="dish-section">
+                                    <h3 class="collapsible-toggle" onclick="toggleCollapsible('enhanced-${index}')">Enhanced Recipe</h3>
+                                    <div id="enhanced-${index}" class="collapsible-content markdown-content">
+                                        ${parseMarkdown(result.enhanced_recipe || 'Not available')}
+                                    </div>
+                                </div>
+                                <div class="dish-section">
+                                    <h3 class="collapsible-toggle" onclick="toggleCollapsible('nutrition-${index}')">Nutrition Info</h3>
+                                    <div id="nutrition-${index}" class="collapsible-content markdown-content">
+                                        ${parseMarkdown(result.nutrition_info || 'Not available')}
+                                    </div>
+                                </div>
+                                <div class="dish-section">
+                                    <h3 class="collapsible-toggle" onclick="toggleCollapsible('tips-${index}')">Cooking Tips</h3>
+                                    <div id="tips-${index}" class="collapsible-content markdown-content">
+                                        ${parseMarkdown(result.cooking_tips || 'Not available')}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     `;
                     resultsDiv.innerHTML += dishCard;
                 });
             } catch (error) {
-                resultsDiv.innerHTML = '<p class="text-red-600 col-12">Error finding dishes. Try again.</p>';
+                resultsDiv.innerHTML = '<p class="text-red-600 col-12 font-medium">Error finding dishes. Please try again.</p>';
                 console.error('Client error:', error);
             }
         }
