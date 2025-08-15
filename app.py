@@ -11,7 +11,7 @@ from langchain_community.tools import DuckDuckGoSearchRun
 from langchain.tools import Tool
 
 # Set Google API key
-os.environ["GOOGLE_API_KEY"] = "AIzaSyDnh5rc9tYn5xvK9dF11-NBwoNK8YbbcDs"
+os.environ["GOOGLE_API_KEY"] = ""
 
 # List of ingredients
 ingredientList = [
