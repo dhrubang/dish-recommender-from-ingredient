@@ -10,8 +10,9 @@ from langchain.chains import SequentialChain, LLMChain
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain.tools import Tool
 
-# Set your Google API key
-os.environ["GOOGLE_API_KEY"] = "" 
+# Set Google API key
+os.environ["GOOGLE_API_KEY"] = "AIzaSyDnh5rc9tYn5xvK9dF11-NBwoNK8YbbcDs"
+
 # List of ingredients
 ingredientList = [
     'agathi', 'ajwain', 'almond', 'amchur', 'amla', 'anise', 'apple', 'apricots', 'asafoetida', 'atta',
@@ -50,18 +51,16 @@ llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash")
 
 # Tools: Web search and custom find dishes tool
 search_tool = DuckDuckGoSearchRun(name="web_search", description="Search the web for real-time information on recipes, variations, nutrition, or cooking methods.")
-
 def find_dishes_func(ingredients_str):
     ingredients = [ing.strip() for ing in ingredients_str.split(',') if ing.strip()]
     results = findDishes(ingredients)
-    return str(results)  # Return as string for agent
+    return str(results)
 
 find_dishes_tool = Tool(
     name="find_dishes",
     func=find_dishes_func,
     description="Find top 3 Indian dishes based on a comma-separated list of ingredients. Input should be a string of ingredients separated by commas."
 )
-
 tools = [search_tool, find_dishes_tool]
 
 # Define prompt templates for chained reasoning
@@ -80,16 +79,22 @@ cooking_tips_prompt = PromptTemplate(
     template="""For the dish '{dish}' with ingredients '{ingredients}', provide three practical cooking tips to enhance flavor, texture, and presentation, tailored for home cooks, including specific techniques or ingredient pairings."""
 )
 
+cost_prompt = PromptTemplate(
+    input_variables=["dish", "ingredients"],
+    template="""You are an expert in culinary economics. For the dish '{dish}' with ingredients '{ingredients}', estimate the approximate cost of preparation in Indian Rupees (INR) based on standard market prices for each ingredient in India. Provide a detailed breakdown of costs per ingredient and a total cost. If exact prices are unavailable, use reasonable estimates for common Indian ingredients."""
+)
+
 # Create LLM chains
 enhance_chain = LLMChain(llm=llm, prompt=enhance_recipe_prompt, output_key="enhanced_recipe")
 nutrition_chain = LLMChain(llm=llm, prompt=nutrition_prompt, output_key="nutrition_info")
 tips_chain = LLMChain(llm=llm, prompt=cooking_tips_prompt, output_key="cooking_tips")
+cost_chain = LLMChain(llm=llm, prompt=cost_prompt, output_key="cost_estimate")
 
 # Combine into a SequentialChain
 recipe_enhancement_chain = SequentialChain(
-    chains=[enhance_chain, nutrition_chain, tips_chain],
+    chains=[enhance_chain, nutrition_chain, tips_chain, cost_chain],
     input_variables=["dish", "ingredients", "context"],
-    output_variables=["enhanced_recipe", "nutrition_info", "cooking_tips"],
+    output_variables=["enhanced_recipe", "nutrition_info", "cooking_tips", "cost_estimate"],
     verbose=True
 )
 
@@ -111,9 +116,8 @@ def findDishes(userIngredients: List[str], topN: int = 3) -> List[Tuple[Optional
             jaccard = len(common) / len(allIngs)
             scores.append((dish, list(common), jaccard))
     scores.sort(key=lambda x: (x[2], -len([node for node in graph.neighbors(x[0]) if graph.nodes[node]['type'] == 'ingredient'])), reverse=True)
-    
+   
     if not scores:
-        # No graph matches: Use chain to suggest a new dish
         try:
             context = f"User has these ingredients: {', '.join(userIngredients)}."
             chain_response = recipe_enhancement_chain({
@@ -153,7 +157,7 @@ def getRecommendations():
                 chain_response = recipe_enhancement_chain({
                     "dish": dish,
                     "ingredients": ", ".join(matches),
-                    "context": f"User selected ingredients: {', '.join(userInput)}. Current time: 03:18 PM IST, August 13, 2025."
+                    "context": f"User selected ingredients: {', '.join(userInput)}. Current time: 04:10 PM IST, August 15, 2025."
                 })
                 if not row.empty:
                     row = row.iloc[0]
@@ -170,10 +174,10 @@ def getRecommendations():
                         'instructions': row.get('instructions', 'Not available'),
                         'enhanced_recipe': chain_response['enhanced_recipe'],
                         'nutrition_info': chain_response['nutrition_info'],
-                        'cooking_tips': chain_response['cooking_tips']
+                        'cooking_tips': chain_response['cooking_tips'],
+                        'cost_estimate': chain_response['cost_estimate']
                     })
                 else:
-                    # For AI-suggested dishes
                     responseData.append({
                         'dish': dish,
                         'matches': matches,
@@ -187,7 +191,8 @@ def getRecommendations():
                         'instructions': chain_response['enhanced_recipe'].split('Instructions:')[-1] or 'Not available',
                         'enhanced_recipe': chain_response['enhanced_recipe'],
                         'nutrition_info': chain_response['nutrition_info'],
-                        'cooking_tips': chain_response['cooking_tips']
+                        'cooking_tips': chain_response['cooking_tips'],
+                        'cost_estimate': chain_response['cost_estimate']
                     })
             else:
                 responseData.append({
@@ -203,7 +208,8 @@ def getRecommendations():
                     'instructions': 'Not available',
                     'enhanced_recipe': 'Not available',
                     'nutrition_info': 'Not available',
-                    'cooking_tips': 'Not available'
+                    'cooking_tips': 'Not available',
+                    'cost_estimate': 'Not available'
                 })
         return jsonify({'results': responseData})
     except Exception as e:
