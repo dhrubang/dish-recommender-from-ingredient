@@ -71,7 +71,7 @@
             transition: max-height 0.5s ease-out;
         }
         .collapsible-content.show {
-            max-height: none; /* Unlimited height to prevent cutoff */
+            max-height: none;
         }
         .collapsible-toggle {
             cursor: pointer;
@@ -118,7 +118,6 @@
         .markdown-content p {
             margin-bottom: 1rem;
         }
-        /* Responsive adjustments */
         @media (max-width: 768px) {
             .container {
                 max-width: 100%;
@@ -147,31 +146,23 @@
         <p id="error-message" class="error-message">Please pick at least one ingredient.</p>
         <div id="results" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4"></div>
     </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let selectedIngredients = [];
         let currentDishes = [];
 
-        // Enhanced markdown-to-HTML parser
         function parseMarkdown(text) {
             if (!text || text === 'Not available') return '<p>Not available</p>';
-
-            // Split text into lines and process for markdown formatting
-            let lines = text.split('\n'); // Keep empty lines for better spacing
+            let lines = text.split('\n');
             let html = '';
             let inList = false;
             let inOrderedList = false;
-
             lines.forEach((line, index) => {
                 line = line.trim();
-
                 if (line === '') {
-                    html += '<br>'; // Add line break for empty lines
+                    html += '<br>';
                     return;
                 }
-
-                // Headers
                 if (line.startsWith('### ')) {
                     if (inList) {
                         html += '</ul>';
@@ -202,17 +193,13 @@
                         inOrderedList = false;
                     }
                     html += `<h1 class="text-xl font-bold text-gray-800">${line.substring(2)}</h1>`;
-                }
-                // Unordered Lists (support * and -)
-                else if (line.startsWith('* ') || line.startsWith('- ')) {
+                } else if (line.startsWith('* ') || line.startsWith('- ')) {
                     if (!inList) {
                         html += '<ul class="list-disc ml-6">';
                         inList = true;
                     }
                     html += `<li>${line.substring(2)}</li>`;
-                }
-                // Ordered Lists
-                else if (line.match(/^\d+\.\s/)) {
+                } else if (line.match(/^\d+\.\s/)) {
                     if (!inOrderedList) {
                         if (inList) {
                             html += '</ul>';
@@ -222,9 +209,7 @@
                         inOrderedList = true;
                     }
                     html += `<li>${line.replace(/^\d+\.\s/, '')}</li>`;
-                }
-                // Bold and Italic
-                else {
+                } else {
                     line = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
                     line = line.replace(/\*(.*?)\*/g, '<em>$1</em>');
                     if (inList) {
@@ -237,8 +222,6 @@
                     }
                     html += `<p class="my-2">${line}</p>`;
                 }
-
-                // Ensure closure at end
                 if (index === lines.length - 1) {
                     if (inList) {
                         html += '</ul>';
@@ -248,7 +231,6 @@
                     }
                 }
             });
-
             return html || '<p>No content available</p>';
         }
 
@@ -363,6 +345,12 @@
                                     <h3 class="collapsible-toggle" onclick="toggleCollapsible('tips-${index}')">Cooking Tips</h3>
                                     <div id="tips-${index}" class="collapsible-content markdown-content">
                                         ${parseMarkdown(result.cooking_tips || 'Not available')}
+                                    </div>
+                                </div>
+                                <div class="dish-section">
+                                    <h3 class="collapsible-toggle" onclick="toggleCollapsible('cost-${index}')">Cost Estimate (INR)</h3>
+                                    <div id="cost-${index}" class="collapsible-content markdown-content">
+                                        ${parseMarkdown(result.cost_estimate || 'Not available')}
                                     </div>
                                 </div>
                             </div>
